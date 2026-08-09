@@ -1,0 +1,6 @@
+apiVersion: v2
+name: agribridge
+description: The AgriBridge marketplace - web, API, database and cache
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

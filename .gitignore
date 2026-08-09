@@ -1,0 +1,54 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# ---------------------------------------------------------------------------
+# Credentials. Nothing here may ever reach GitHub.
+#
+# Deleting a file does not remove it from Git's history - if a key is ever
+# committed, it stays in the history and must be treated as leaked. So these
+# never get added in the first place.
+# ---------------------------------------------------------------------------
+aws.env
+*.env
+!*.env.example
+!aws.env.example
+
+# The Kubernetes credential
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+
+# SSH keys
+*.pem
+*.key
+
+# ---------------------------------------------------------------------------
+# Terraform
+#
+# The state file records everything Terraform has built - including generated
+# passwords, in plain text. Never commit it.
+# ---------------------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+
+# Holds your AWS account number and your home IP address. The .example file
+# is the one that gets committed.
+terraform.tfvars
+!terraform.tfvars.example
+
+# This one IS committed on purpose: it pins the exact provider versions, so
+# everyone who runs terraform gets identical behaviour.
+!.terraform.lock.hcl
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,58 @@
+# Copy this file to terraform.tfvars and fill in your three values.
+#
+#     cp terraform.tfvars.example terraform.tfvars
+#
+# Terraform loads terraform.tfvars automatically, so afterwards you just run
+# `terraform apply` with no arguments.
+#
+# terraform.tfvars is gitignored, because it contains your account number and
+# your home IP address. This example file is the one that gets committed.
+
+
+# ---------------------------------------------------------------------------
+# 1. WHICH AWS ACCOUNT  (safety guard)
+#
+# The 12-digit ID of YOUR OWN account - not a work one.
+#
+# Terraform will refuse to run if the credentials it finds belong to any other
+# account. That is deliberate: it means this project cannot build in the wrong
+# place, even if you forget to run `source aws.env` first.
+#
+# Find it: sign in to the AWS console, click your name in the top right, and
+# copy the "Account ID". No dashes.
+# ---------------------------------------------------------------------------
+aws_account_id = "123456789012"
+
+
+# ---------------------------------------------------------------------------
+# 2. YOUR IP ADDRESS
+#
+# Controls who can reach SSH, Grafana and Prometheus. The application itself
+# stays open to everyone.
+#
+# Find it: open https://checkip.amazonaws.com in a browser, then add /32.
+#
+# If your internet connection changes address, Grafana will stop loading -
+# update this and run terraform apply again.
+# ---------------------------------------------------------------------------
+my_ip_cidr = "1.2.3.4/32"
+
+
+# ---------------------------------------------------------------------------
+# 3. YOUR EC2 KEY PAIR
+#
+# The NAME of a key pair in this region, not the path to the .pem file.
+#
+# Create one: AWS console > EC2 > Key pairs > Create key pair, choose .pem,
+# and keep the downloaded file somewhere safe.
+# ---------------------------------------------------------------------------
+key_pair_name = "my-key-pair"
+
+
+# ---------------------------------------------------------------------------
+# Optional - sensible defaults already exist for these.
+# ---------------------------------------------------------------------------
+# aws_region       = "eu-west-1"
+# instance_type    = "t3.medium"
+# disk_size_gb     = 30
+# grafana_password = "capstone123"

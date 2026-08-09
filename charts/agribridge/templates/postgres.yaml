@@ -1,0 +1,103 @@
+{{/*
+PostgreSQL.
+
+A StatefulSet rather than a Deployment, for one reason that is worth
+understanding: a StatefulSet can attach a disk that OUTLIVES the pod.
+
+So you can delete this pod on camera, watch a new one start, and the data is
+still there. With a Deployment and ordinary temporary storage, everything would
+be gone. That is a good thing to demonstrate.
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-postgres
+  labels:
+    app: postgres
+spec:
+  serviceName: {{ .Release.Name }}-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          ports:
+            - containerPort: {{ .Values.postgres.port }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: POSTGRES_PASSWORD
+            # The data must live in a SUBFOLDER of the mounted disk. Pointing
+            # it straight at the mount fails, because the disk already contains
+            # a lost+found folder and PostgreSQL refuses a non-empty directory.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+
+          # "Is the database ready to accept queries yet?" The port opens
+          # before the database is actually usable, so checking the port alone
+          # would let traffic through too early.
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+          # Generous on purpose. After an unclean shutdown PostgreSQL replays
+          # its log before accepting connections, and on a small server that can
+          # take minutes. A strict check here would kill it mid-recovery, over
+          # and over.
+          startupProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER"]
+            periodSeconds: 10
+            failureThreshold: 30
+
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+
+  # This is the bit that makes the data survive.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage }}
+---
+{{/*
+A Service is a stable name for a set of pods. The API connects to
+"<release>-postgres" and Kubernetes routes it to whichever pod is running,
+even after a restart gives it a new address.
+
+clusterIP: None means "do not load balance, just give me the pod's real
+address" - which is what a single database wants.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-postgres
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.postgres.port }}
+      targetPort: {{ .Values.postgres.port }}
+  selector:
+    app: postgres

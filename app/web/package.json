@@ -1,0 +1,27 @@
+{
+  "name": "agribridge-web",
+  "version": "1.0.0",
+  "description": "AgriBridge marketplace web app - mobile-first, built for 3G",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "@vitest/coverage-v8": "2.1.8",
+    "eslint": "9.17.0",
+    "eslint-plugin-react": "^7.37.2",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}

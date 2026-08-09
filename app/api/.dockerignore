@@ -1,0 +1,26 @@
+# Keep the build context small and keep secrets out of image layers.
+# Anything copied into a layer is recoverable with `docker history`, even if a
+# later instruction deletes it - see SEC-1.
+
+node_modules
+npm-debug.log*
+coverage
+reports
+test
+.env
+.env.*
+*.pem
+*.key
+.git
+.gitignore
+.github
+Dockerfile
+.dockerignore
+README.md
+docs
+eslint.config.js
+vitest.config.js
+*.md
+.vscode
+.idea
+.DS_Store

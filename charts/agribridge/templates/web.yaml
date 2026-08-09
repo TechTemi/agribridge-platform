@@ -1,0 +1,79 @@
+{{/*
+The web front end: an nginx container serving the built React app.
+
+It also forwards anything starting with /api to the API service, which is why
+the browser only ever talks to one address. The API's location is given here as
+an environment variable, so the same image works no matter what you call things.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-web
+  labels:
+    app: web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.dockerhubUser }}/agribridge-web:{{ .Values.imageTag }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.web.port }}
+
+          env:
+            - name: API_UPSTREAM
+              value: "{{ .Release.Name }}-api:{{ .Values.api.port }}"
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+
+          # nginx needs somewhere to write its temporary files.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-web
+  labels:
+    app: web
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: {{ .Values.web.port }}
+      targetPort: http
+      nodePort: {{ .Values.web.nodePort }}
+  selector:
+    app: web

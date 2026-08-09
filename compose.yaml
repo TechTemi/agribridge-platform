@@ -1,0 +1,98 @@
+# Local development stack.
+#
+# One command gives you the entire platform on a laptop:
+#     docker compose up --build
+#
+# This is the direct answer to Chinedu's ask in the case study: local
+# development that matches production closely enough that "works on my machine"
+# stops being a category of bug. Same images, same migrations, same seed data.
+#
+#   web        http://localhost:8080
+#   api        http://localhost:3000  (/healthz /readyz /metrics /version)
+#   postgres   localhost:5432
+#   grafana    http://localhost:3001  (admin / admin) - optional profile
+#
+# Bring up the optional observability profile with:
+#     docker compose --profile observability up --build
+
+name: agribridge
+
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_DB: agribridge
+      POSTGRES_USER: agribridge
+      POSTGRES_PASSWORD: localdev
+      # Speeds up the test suite considerably and is safe for throwaway data.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The same check the StatefulSet uses in the cluster.
+      test: ["CMD-SHELL", "pg_isready -U agribridge -d agribridge"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./app/api
+      args:
+        GIT_SHA: local-dev
+        APP_VERSION: 0.0.0-local
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      LOG_LEVEL: debug
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: agribridge
+      PGUSER: agribridge
+      PGPASSWORD: localdev
+      REDIS_ENABLED: "true"
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: local-development-only-secret
+      BCRYPT_ROUNDS: "8"
+      RUN_MIGRATIONS: "true"
+      SEED_DEMO_DATA: "true"
+      TRUST_PROXY: "true"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./app/web
+      args:
+        GIT_SHA: local-dev
+        APP_VERSION: 0.0.0-local
+    environment:
+      API_UPSTREAM: api:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:

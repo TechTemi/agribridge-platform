@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+*.pem
+*.key
+.git
+.gitignore
+.github
+Dockerfile
+.dockerignore
+README.md
+*.md
+.vscode
+.idea
+.DS_Store

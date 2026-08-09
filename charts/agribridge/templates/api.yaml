@@ -1,0 +1,134 @@
+{{/*
+The API: the Deployment that runs it, the Service that exposes it, and the
+ServiceMonitor that tells Prometheus to collect its metrics.
+
+Three related things in one file, on purpose. Splitting every object into its
+own file is tidy on a large project and just makes a small one harder to read.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.dockerhubUser }}/agribridge-api:{{ .Values.imageTag }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.port }}
+
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: {{ .Values.api.port | quote }}
+            - name: PGHOST
+              value: {{ .Release.Name }}-postgres
+            - name: PGDATABASE
+              value: {{ .Values.postgres.database | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgres.username | quote }}
+            - name: REDIS_ENABLED
+              value: "true"
+            - name: REDIS_URL
+              value: "redis://{{ .Release.Name }}-redis:{{ .Values.redis.port }}"
+            - name: RUN_MIGRATIONS
+              value: "true"
+            - name: SEED_DEMO_DATA
+              value: {{ .Values.seedDemoData | quote }}
+            - name: IMAGE_TAG
+              value: {{ .Values.imageTag | quote }}
+            - name: GIT_SHA
+              value: {{ .Values.imageTag | quote }}
+
+          # The password and session key come from the Secret, never from here.
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+
+          # THE TWO HEALTH CHECKS - worth explaining when you present.
+          #
+          # liveness  = "is this program alive?"  Kubernetes RESTARTS it if not.
+          #             It deliberately does not check the database.
+          #
+          # readiness = "can it do useful work?"  Kubernetes stops sending it
+          #             traffic if not, but does NOT restart it.
+          #
+          # If liveness checked the database, a brief database problem would
+          # make Kubernetes kill every copy of the app, repeatedly, turning a
+          # small problem into a total outage.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          # Extra patience while the database starts up for the first time.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app: api
+spec:
+  # NodePort: open this fixed port on the server itself, so you can reach the
+  # API from your browser without any load balancer.
+  type: NodePort
+  ports:
+    - name: http
+      port: {{ .Values.api.port }}
+      targetPort: http
+      nodePort: {{ .Values.api.nodePort }}
+  selector:
+    app: api
+---
+{{/*
+This tells Prometheus to collect the app's metrics.
+
+Without it, Prometheus has no idea the application exists, and the dashboards
+stay empty with no error anywhere - which is a genuinely confusing thing to
+debug the first time it happens.
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app: api
+spec:
+  selector:
+    matchLabels:
+      app: api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

@@ -1,0 +1,66 @@
+{{/*
+Redis, used as a cache.
+
+No storage at all, deliberately. Everything in a cache can be recalculated from
+the database, so losing it costs a little speed and nothing else. That is why
+this is a plain Deployment while PostgreSQL needed a StatefulSet with a disk -
+the difference between the two is exactly "does losing this data matter?".
+
+The API is written to keep working if Redis disappears. Worth mentioning: a
+cache should never be able to take your application down.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          # Turn off saving to disk, and throw away the least recently used
+          # entries when memory fills, rather than returning errors.
+          command:
+            - redis-server
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+            - --maxmemory
+            - "64mb"
+            - --maxmemory-policy
+            - allkeys-lru
+          ports:
+            - containerPort: {{ .Values.redis.port }}
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-redis
+spec:
+  ports:
+    - port: {{ .Values.redis.port }}
+      targetPort: {{ .Values.redis.port }}
+  selector:
+    app: redis

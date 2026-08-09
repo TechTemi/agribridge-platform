@@ -1,0 +1,61 @@
+# Settings for the application.
+#
+# A Helm chart is a template. This file holds the values that get filled into
+# it, so the same templates can run with different settings without editing
+# any of the YAML.
+
+# Your Docker Hub account. The pipeline overrides this automatically, but set
+# it anyway so you can run helm by hand if you want to.
+dockerhubUser: OWNER
+
+# Which image version to run. The pipeline sets this to the exact code version
+# it just built, so you can always tell what is running.
+imageTag: latest
+
+api:
+  replicas: 2
+  port: 3000
+  # NodePort means: open this port on the server itself so you can reach the
+  # service from outside the cluster. 30081 is what the firewall rule allows.
+  nodePort: 30081
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+
+web:
+  replicas: 2
+  port: 8080
+  nodePort: 30080
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 96Mi
+
+postgres:
+  # Runs inside the cluster on a disk that survives the pod restarting.
+  # A real system would use a managed database service; this keeps everything
+  # in one place, which is easier to build and destroy.
+  image: postgres:16.4-alpine
+  database: agribridge
+  username: agribridge
+  port: 5432
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+
+redis:
+  image: redis:7.4-alpine
+  port: 6379
+
+# Fill the app with example farmers, buyers and orders on first start, so the
+# screen has something on it during the demo.
+seedDemoData: true

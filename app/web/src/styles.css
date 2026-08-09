@@ -1,0 +1,238 @@
+/*
+ * Mobile-first, hand-written CSS. No framework.
+ *
+ * The median AgriBridge user is on a 2 GB Android phone over 240 kbps 3G, so
+ * every kilobyte of CSS competes with the data the page actually needs. The
+ * layout is built at 360 px and widens from there.
+ */
+
+:root {
+  --green-900: #0b3d2c;
+  --green-800: #14532d;
+  --green-700: #166534;
+  --green-100: #dcfce7;
+  --green-50:  #f0fdf4;
+  --amber-600: #b45309;
+  --amber-50:  #fffbeb;
+  --red-700:   #b91c1c;
+  --red-50:    #fef2f2;
+  --ink:       #1f2937;
+  --muted:     #6b7280;
+  --line:      #e5e7eb;
+  --bg:        #f9fafb;
+  --radius:    10px;
+  --shadow:    0 1px 2px rgb(0 0 0 / 6%), 0 4px 12px rgb(0 0 0 / 4%);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0 0 .5rem; line-height: 1.25; font-weight: 600; }
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.1rem; }
+h3 { font-size: .95rem; }
+p  { margin: 0 0 .75rem; }
+
+/* ------------------------------------------------------------------ shell -- */
+
+.app { display: flex; flex-direction: column; min-height: 100%; }
+
+.topbar {
+  background: var(--green-900);
+  color: #fff;
+  padding: .7rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; }
+.brand span { color: #86efac; font-weight: 400; }
+
+.topbar .spacer { flex: 1; }
+
+.who { font-size: .8rem; color: #bbf7d0; }
+
+.nav {
+  display: flex;
+  gap: .25rem;
+  padding: .5rem 1rem 0;
+  background: var(--green-900);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+
+.nav button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: #a7f3d0;
+  padding: .55rem .8rem;
+  font-size: .875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.nav button.active { color: #fff; border-bottom-color: var(--amber-600); }
+
+main { flex: 1; padding: 1rem; max-width: 1100px; width: 100%; margin: 0 auto; }
+
+footer {
+  padding: 1rem;
+  font-size: .75rem;
+  color: var(--muted);
+  text-align: center;
+  border-top: 1px solid var(--line);
+}
+footer code { font-size: .72rem; }
+
+/* ------------------------------------------------------------------ cards -- */
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: .85rem;
+  box-shadow: var(--shadow);
+}
+
+.grid { display: grid; gap: .85rem; grid-template-columns: 1fr; }
+@media (min-width: 640px)  { .grid.two   { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px)  { .grid.three { grid-template-columns: repeat(3, 1fr); } }
+
+/* KPI tiles: two per row even at 360 px, which is the whole point. */
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; margin-bottom: 1rem; }
+@media (min-width: 720px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
+
+.kpi {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--green-700);
+  border-radius: var(--radius);
+  padding: .7rem .8rem;
+}
+.kpi .label { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.kpi .value { font-size: 1.25rem; font-weight: 700; color: var(--green-800); margin-top: .15rem; }
+.kpi .sub   { font-size: .72rem; color: var(--muted); }
+
+/* -------------------------------------------------------------- lot cards -- */
+
+.lot { display: flex; flex-direction: column; gap: .5rem; }
+.lot-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+.lot-crop { font-weight: 600; font-size: 1rem; }
+.lot-meta { font-size: .78rem; color: var(--muted); }
+.lot-price { font-weight: 700; color: var(--green-800); white-space: nowrap; }
+
+.badge {
+  display: inline-block;
+  font-size: .68rem;
+  font-weight: 600;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--green-800);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.badge.grade-B { background: var(--amber-50); color: var(--amber-600); }
+.badge.grade-C { background: var(--red-50);   color: var(--red-700); }
+.badge.PENDING    { background: #f3f4f6; color: #374151; }
+.badge.MATCHED    { background: #dbeafe; color: #1e40af; }
+.badge.IN_TRANSIT { background: var(--amber-50); color: var(--amber-600); }
+.badge.DELIVERED  { background: #e0e7ff; color: #3730a3; }
+.badge.SETTLED    { background: var(--green-100); color: var(--green-800); }
+.badge.CANCELLED  { background: var(--red-50); color: var(--red-700); }
+
+/* ------------------------------------------------------------------ forms -- */
+
+label { display: block; font-size: .8rem; font-weight: 500; margin-bottom: .25rem; color: #374151; }
+
+input, select, button {
+  font-family: inherit;
+  font-size: .9rem;
+}
+
+input, select {
+  width: 100%;
+  padding: .55rem .65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+input:focus, select:focus { outline: 2px solid var(--green-700); outline-offset: -1px; }
+
+.field { margin-bottom: .7rem; }
+.row { display: grid; gap: .7rem; grid-template-columns: 1fr; }
+@media (min-width: 560px) { .row.two { grid-template-columns: 1fr 1fr; } }
+
+button {
+  cursor: pointer;
+  border: 0;
+  border-radius: 8px;
+  padding: .6rem 1rem;
+  font-weight: 600;
+  background: var(--green-700);
+  color: #fff;
+  /* 44 px minimum touch target - these are one-handed phone users. */
+  min-height: 44px;
+}
+button:hover:not(:disabled) { background: var(--green-800); }
+button:disabled { opacity: .55; cursor: not-allowed; }
+
+button.secondary { background: #fff; color: var(--green-800); border: 1px solid var(--line); }
+button.secondary:hover:not(:disabled) { background: var(--green-50); }
+button.small { padding: .35rem .7rem; font-size: .8rem; min-height: 36px; }
+button.danger { background: var(--red-700); }
+
+.actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------- notices -- */
+
+.notice { padding: .65rem .8rem; border-radius: 8px; font-size: .85rem; margin-bottom: .85rem; }
+.notice.error   { background: var(--red-50);   color: var(--red-700);   border: 1px solid #fecaca; }
+.notice.success { background: var(--green-50); color: var(--green-800); border: 1px solid #bbf7d0; }
+.notice.info    { background: var(--amber-50); color: var(--amber-600); border: 1px solid #fde68a; }
+.notice code { font-size: .75rem; opacity: .8; }
+
+.empty { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: .875rem; }
+
+.spinner { text-align: center; padding: 2rem; color: var(--muted); font-size: .875rem; }
+
+/* ----------------------------------------------------------------- tables -- */
+
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+tbody tr:hover { background: var(--green-50); }
+
+/* ------------------------------------------------------------------ login -- */
+
+.login-wrap { min-height: 100%; display: grid; place-items: center; padding: 1.5rem 1rem; }
+.login-card { width: 100%; max-width: 380px; }
+.login-card .brand { color: var(--green-900); font-size: 1.4rem; margin-bottom: .2rem; }
+.login-card .tagline { font-size: .82rem; color: var(--muted); margin-bottom: 1.1rem; }
+
+.demo-creds { margin-top: 1rem; padding-top: .85rem; border-top: 1px solid var(--line); font-size: .75rem; color: var(--muted); }
+.demo-creds button { margin-top: .4rem; }
+.demo-creds code { display: block; font-size: .72rem; margin: .15rem 0; color: var(--ink); }
+
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.nowrap { white-space: nowrap; }
