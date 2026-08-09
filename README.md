@@ -65,7 +65,6 @@ You need Docker Desktop running.
 
 ```bash
 docker compose up --build
-```
 
 Then open **http://localhost:8080**.
 
