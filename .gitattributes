@@ -1,0 +1,8 @@
+# Cross-platform text normalization
+* text=auto
+
+# Repository policy files must remain LF.
+.gitattributes text eol=lf
+
+# Linux shell scripts must always use LF line endings.
+*.sh text eol=lf
