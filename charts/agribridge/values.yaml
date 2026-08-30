@@ -18,6 +18,9 @@ api:
   # NodePort means: open this port on the server itself so you can reach the
   # service from outside the cluster. 30081 is what the firewall rule allows.
   nodePort: 30081
+  # The inherited AWS demo is exposed through a plain HTTP NodePort.
+  # Production TLS deployments should override this to true.
+  cookieSecure: false
   resources:
     requests:
       cpu: 100m

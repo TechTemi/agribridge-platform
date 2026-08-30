@@ -31,6 +31,8 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+            - name: COOKIE_SECURE
+              value: {{ .Values.api.cookieSecure | quote }}
             - name: PORT
               value: {{ .Values.api.port | quote }}
             - name: PGHOST
