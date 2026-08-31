@@ -1,267 +1,230 @@
-# AgriBridge — DevOps Capstone
+# AgriBridge Platform - Evidence-Driven As-Is DevOps Implementation
 
-A small marketplace application, deployed the way a real team would deploy one.
+> **Status:** As-is implementation lifecycle complete. The AWS demo environment was intentionally destroyed after evidence capture. This repository is the durable implementation and portfolio artifact.
 
-The point of this project is not the application. It is the path the application
-takes to get from your laptop to a running server: built into containers, tested
-automatically, published to a registry, deployed to Kubernetes, and monitored.
+## Executive summary
 
----
+AgriBridge is a containerized marketplace platform delivered through an evidence-first DevOps workflow using **GitHub Actions, Docker Hub, Terraform, AWS EC2, k3s, Helm, Prometheus, Grafana, Loki and Promtail**.
 
-## What it is
+The delivery deliberately preserved the inherited baseline, validated the application locally, deployed the inherited architecture, reproduced real runtime defects, converted two proven runtime workarounds into declarative Helm fixes, validated observability/resilience/persistence, exercised Helm rollback and restoration, froze the evidence set, and destroyed the live infrastructure.
 
-AgriBridge connects farmers who have grain to sell with buyers who want to buy
-it. Farmers list produce, buyers place orders, and orders move through stages —
-pending, matched, in transit, delivered, settled.
+This repository should be described as a **validated as-is DevOps implementation**, not as a finished production-grade platform.
 
-| Part | Built with |
+## Documentation
+
+This repository includes the final evidence-driven documentation produced from the completed as-is implementation lifecycle:
+
+- [AgriBridge As-Is Technical Implementation Report and Runbook](docs/AgriBridge_As-Is_Technical_Implementation_Report_and_Runbook.docx) — detailed implementation record covering repository provenance, local validation, AWS/Terraform provisioning, k3s/Helm deployment, CI/CD, observability, resilience, troubleshooting, remediation, rollback, restoration and teardown.
+- [AgriBridge Evidence Index](docs/AgriBridge_Evidence_Index.md) — index of the highest-value implementation evidence and the final integrity/closure records.
+
+The live AWS demonstration environment was intentionally destroyed after acceptance and evidence capture. The repository and documentation are the durable implementation artifacts.
+
+## Final source lineage
+
+| Record | Value |
 |---|---|
-| Web front end | React, served by nginx |
-| API | Node.js |
-| Database | PostgreSQL |
-| Cache | Redis |
+| Inherited baseline | `4c1aa561c0e168aa97721c03f78a8a80b8484365` |
+| Controlled cloud baseline | `60e9d170a33e04fcd86a713c635727b9c5b957df` |
+| Corrective PR | `#2 - fix: make Helm runtime compatibility reproducible` |
+| Final corrected main | `a1ea8f513170e3dbbe7f9587e36cf3ae69703303` (`a1ea8f5`) |
+| Corrective CI/CD run | `33335744208` - success |
+| Final evidence integrity | 91 files / 91 SHA-256 entries / PASS |
 
----
+## Architecture
 
-## The tools, and what each one is for
+```text
+Developer / Windows PowerShell
+        |
+        v
+GitHub -> GitHub Actions (test -> build/push -> Helm deploy)
+        |
+        +------> Docker Hub
+        |
+        v
+Terraform-managed AWS EC2
+        |
+        v
+k3s single-node cluster
+  agribridge namespace
+    API x2 -> PostgreSQL StatefulSet + PVC
+           -> Redis
+    Web x2 -> API service
 
-| Tool | Its job here |
+  monitoring namespace
+    Prometheus + ServiceMonitor
+    Grafana
+    Loki + Promtail
+    Alertmanager / kube-state-metrics / node-exporter
+```
+
+## What was validated
+
+| Capability | Result |
 |---|---|
-| **Docker** | Packages the app so it runs the same everywhere |
-| **Docker Hub** | Stores those packages so the server can download them |
-| **Terraform** | Creates the AWS server, described in files instead of clicked in a console |
-| **k3s** | A small Kubernetes. Runs the containers, restarts them when they fail |
-| **Helm** | Describes everything the app needs in Kubernetes, in one template |
-| **GitHub Actions** | Runs tests, builds images and deploys — automatically, on every push |
-| **Prometheus** | Collects numbers: requests, errors, memory, orders |
-| **Grafana** | Draws those numbers as dashboards |
-| **Loki** | Collects log lines so you can search them |
+| API tests | 40/40 passing |
+| Web production build | PASS |
+| Local buyer/farmer workflows | PASS |
+| Docker image publication | PASS |
+| Terraform AWS provisioning | PASS |
+| k3s / Helm deployment | PASS |
+| GitHub Actions CI/CD | PASS |
+| Buyer cloud workflow | PASS |
+| Farmer cloud workflow | PASS |
+| API self-healing | PASS |
+| Web self-healing | PASS |
+| PostgreSQL persistence | PASS |
+| Prometheus scraping | PASS - both API replicas `up=1` |
+| Loki/Promtail ingestion | PASS - 7 AgriBridge streams returned |
+| Grafana log query | PASS |
+| Controlled Helm rollback | PASS |
+| Corrective release restoration | PASS |
+| Terraform/AWS teardown | PASS |
+| Credential/secret cleanup | PASS |
 
----
+## Runtime defects found during delivery
 
-## Project layout
+### 1. Concurrent demo seed race
 
-```
-.
-├── app/
-│   ├── api/                 the API - Node.js, with tests
-│   └── web/                 the front end - React
-├── infra/
-│   ├── main.tf              the AWS server and firewall rules
-│   ├── variables.tf         settings you can change
-│   ├── outputs.tf           what Terraform tells you afterwards
-│   └── user-data.sh         installs k3s, Helm, Docker and monitoring on boot
-├── charts/agribridge/       how the app runs inside Kubernetes
-├── .github/workflows/
-│   └── deploy.yml           test, build, push, deploy
-└── compose.yaml             run the whole thing on your laptop
-```
+Two API replicas can attempt to seed demo users concurrently on first startup. One replica reproduced a unique-key violation on `users_email_key`. The pod later restarted and continued because demo data was already present.
 
----
+**Disposition:** documented as inherited application-level concurrency/idempotency debt. Not silently redesigned during the as-is delivery.
 
-## Run it on your laptop first
+### 2. Web-to-API Kubernetes DNS failure
 
-You need Docker Desktop running.
+The inherited chart set:
 
-```bash
-docker compose up --build
-
-Then open **http://localhost:8080**.
-
-Three demo logins are on the sign-in page, one click each. The password is shown
-on screen.
-
-To stop it:
-
-```bash
-docker compose down -v
+```text
+API_UPSTREAM=agribridge-api:3000
 ```
 
----
+The Web container uses a variable-based nginx `proxy_pass` and explicit resolver. In the live k3s environment the short name produced NXDOMAIN and `/api/*` returned `502`.
 
-## Deploy it to AWS
+The proven runtime value was:
 
-### What you need first
-
-- An AWS account
-- A GitHub account
-- A Docker Hub account
-- Terraform installed
-- An **EC2 key pair** — create one in the AWS console under
-  *EC2 → Key pairs → Create key pair*, choose `.pem`, and keep the file safe
-
-### 1. Set your AWS keys
-
-Terraform needs permission to build things. Put your keys in a file that Git
-ignores, then load it into your terminal:
-
-```bash
-cp aws.env.example aws.env
-# edit aws.env and put your real keys in
-source aws.env
+```text
+agribridge-api.agribridge.svc.cluster.local:3000
 ```
 
-> `source` only affects the terminal you run it in. Open a new terminal and you
-> need to run it again, or Terraform will say it has no credentials.
+PR #2 made this declarative in `charts/agribridge/templates/web.yaml`.
 
-### 2. Tell Terraform which account, which IP, and which key
+### 3. Secure session cookie over HTTP
 
-```bash
-cd infra
-cp terraform.tfvars.example terraform.tfvars
-notepad terraform.tfvars
+The inherited demo runs `NODE_ENV=production` on plain HTTP NodePort access. With `COOKIE_SECURE` unset, the session cookie received the `Secure` attribute and `/api/auth/me` returned `401`.
+
+The demo-compatible runtime setting:
+
+```text
+COOKIE_SECURE=false
 ```
 
-Fill in three values. The file explains where to find each one.
+made authentication work over the inherited HTTP demo. PR #2 made this chart-configurable. **A real TLS production deployment should override it to `true`.**
 
-⚠ **`aws_account_id` is a safety guard, not just a setting.** Terraform checks
-which account your credentials actually belong to and **refuses to run** if it
-is not the one you named here.
+## Observability evidence
 
-That matters because of how AWS credentials work: if you forget to
-`source aws.env`, Terraform silently falls back to `~/.aws/credentials` with no
-warning at all. On a machine that also has work credentials configured, that
-would mean building in the wrong account. With this guard set, it simply cannot
-happen — you get:
+Prometheus validation included:
 
-```
-Error: AWS account ID not allowed: 123456789012
-```
+- `/-/ready` = HTTP 200
+- both API replicas discovered by the ServiceMonitor
+- both targets `health=up`
+- `up{namespace="agribridge"}` = `1` for both replicas
+- `/metrics` = HTTP 200
 
-and nothing is created.
+Loki/Promtail/Grafana validation included:
 
-### 3. Build the server
+- Loki readiness = `ready`
+- Loki namespace values include `agribridge`
+- direct LogQL query returned `status=success`, `resultType=streams`, **7 streams**
+- Web, API and PostgreSQL streams observed
+- Grafana Explore displayed real AgriBridge logs for `{namespace="agribridge"}`
+- the earlier **Fix Loki URL** troubleshooting sequence is retained as historical evidence of datasource diagnosis
 
-```bash
-terraform init
-terraform apply
-```
+## Resilience and rollback
 
-No arguments needed — Terraform reads `terraform.tfvars` automatically.
+The implementation proved:
 
-Takes about 3 minutes. Then wait another **5 minutes** for the server to finish
-installing everything.
+- deleting an API pod caused Kubernetes to create a healthy replacement
+- deleting a Web pod caused Kubernetes to create a healthy replacement while retaining the corrected upstream configuration
+- deleting the PostgreSQL StatefulSet pod recreated it using the same PVC; business data remained present
+- Helm rollback from corrected revision 2 to inherited revision 1 succeeded technically, but `/api/lots` regressed to `502`
+- restoring revision 2 created revision 4 and returned the corrected images/configuration with `/api/lots=200` and `/api/auth/me=200`
 
-Terraform prints what to do next. You can see it again any time:
+This rollback test exposed a useful production lesson: **infrastructure-level health can be green while an application dependency path is broken**.
 
-```bash
-terraform output next_steps
-```
+## Evidence integrity
 
-### 4. Get the Kubernetes credential
+Evidence was captured throughout the lifecycle under the project evidence directory. The final cryptographic inventory contains:
 
-This is what lets the pipeline deploy to your server.
-
-```bash
-terraform output -raw get_kubeconfig_command
-```
-
-Run the command it prints. It saves a file called `kubeconfig`.
-
-Check it works:
-
-```bash
-KUBECONFIG=./kubeconfig kubectl get nodes
+```text
+Evidence files:   91
+Manifest entries: 91
+PASS: final evidence manifest is complete.
 ```
 
-### 5. Add three secrets to GitHub
+The manifest itself is independently SHA-256 hashed.
 
-Turn the credential into one long line:
+High-value artifacts include:
 
-```bash
-base64 -w0 kubeconfig
+- `final/pr-2.json`
+- `final/corrective-cicd-run.json`
+- `final/helm-history-final.txt`
+- `final/api-version-final.json`
+- `final/api-readiness-final.json`
+- `cloud-acceptance/prometheus-agribridge-targets.json`
+- `cloud-acceptance/loki-agribridge-query.json`
+- `rollback/web-logs-at-revision-1.txt`
+- `teardown/terraform-destroy-plan.txt`
+- `teardown/ec2-after-destroy.txt`
+- `teardown/local-credential-cleanup.txt`
+- `final/evidence-sha256.csv`
+- `final/evidence-sha256-manifest-hash.txt`
+
+## Final teardown state
+
+The live demo is intentionally offline. Final closure verified:
+
+```text
+Terraform resources remaining: 0
+Kubeconfig exists: False
+PEM exists: False
+terraform.tfvars exists: False
+Build and deploy: disabled_manually
+GitHub Actions secrets: none
+Git working tree: clean main
 ```
 
-Then on GitHub: **Settings → Secrets and variables → Actions → New repository secret**
+## Production-readiness gaps
 
-| Name | Value |
-|---|---|
-| `KUBECONFIG_B64` | The long line from above |
-| `DOCKERHUB_USERNAME` | Your Docker Hub username |
-| `DOCKERHUB_TOKEN` | A Docker Hub access token (*Account settings → Personal access tokens*) |
+This as-is implementation is **not** production architecture. Priority hardening includes:
 
-That is all three. There is nothing else to configure.
+- TLS ingress/load balancer and DNS
+- private/restricted Kubernetes API and monitoring endpoints
+- remote encrypted Terraform state with locking
+- OIDC/short-lived deployment identity instead of a long-lived kubeconfig secret
+- idempotent/transactional migration and seed strategy
+- managed/HA PostgreSQL and Redis with backup/restore
+- SCA/security gates, SBOM, image signing and provenance
+- multi-node/managed Kubernetes and autoscaling
+- network policies and tighter RBAC
+- synthetic/integration health checks, SLOs and actionable alerts
+- retention/security controls for logs and metrics
+- GitHub Actions dependency/runtime maintenance
 
-### 6. Push
+## Re-running the demo
 
-```bash
-git add -A
-git commit -m "Deploy AgriBridge"
-git push
+The original AWS resources and credentials were destroyed. Re-running the project creates new billable infrastructure and requires fresh credentials.
+
+Typical lifecycle:
+
+```text
+clone -> local validation -> Terraform provision -> k3s bootstrap
+-> configure repository secrets -> GitHub Actions deploy -> acceptance
+-> observability/resilience testing -> evidence capture -> Terraform destroy
 ```
 
-Watch it on the **Actions** tab. It runs the tests, builds both images, pushes
-them to Docker Hub, and deploys — about 5 minutes.
+Do not commit or publish kubeconfig files, PEM keys, Terraform state, tokens, passwords or session cookies.
 
-### 7. Open it
+## Portfolio positioning
 
-```bash
-cd infra
-terraform output app_url
-terraform output grafana_url
-```
+The strongest story in this repository is not simply "I deployed an app." It demonstrates a full engineering lifecycle:
 
-Grafana logs in as `admin`, with the password from `grafana_password`
-(`capstone123` unless you changed it).
-
----
-
-## When you are finished
-
-```bash
-cd infra
-terraform destroy
-```
-
-Everything is deleted. Because the whole system is described by the files in
-this repository, running `terraform apply` again rebuilds it.
-
-Afterwards, tidy up the credentials you created:
-
-- Delete the AWS access key in IAM
-- Revoke the Docker Hub token
-- `rm aws.env kubeconfig`
-
----
-
-## Things worth understanding
-
-**Why two health checks?**
-`/healthz` asks *is the program running?* and `/readyz` asks *can it actually do
-its job?* Kubernetes restarts anything failing the first, but only stops sending
-traffic to anything failing the second. If `/healthz` checked the database, one
-database hiccup would make Kubernetes kill every copy of the app repeatedly —
-turning a small problem into a total outage.
-
-**Why does the database use a StatefulSet?**
-Because a StatefulSet can attach a disk that outlives the pod. Delete the
-database pod and the data is still there when it comes back. Redis is a plain
-Deployment with no disk, because a cache can be rebuilt from the database.
-
-**Why is the image named after a commit?**
-So you can always answer "which version is running?". A tag like `latest` moves,
-so it can never tell you that.
-
-**Where does the database password come from?**
-Helm generates it on first install and reuses it afterwards. It is never written
-in any file in this repository.
-
----
-
-## What this is not
-
-Worth being straight about, because these are real gaps and knowing them is part
-of the exercise:
-
-- **One server.** If it dies, everything dies. A production system would run
-  several.
-- **Local Terraform state.** The record of what has been built sits in this
-  folder. A real team keeps it in shared storage so it cannot be lost.
-- **No HTTPS.** Traffic is plain HTTP, because there is no domain name — you
-  cannot get a certificate for a bare IP address.
-- **No backups.** The database has a disk that survives restarts, but nothing is
-  copied anywhere else.
-- **One environment.** Real teams deploy to staging first.
-
-Each of those is a deliberate simplification to keep the project understandable,
-not something that was overlooked.
+**preserve -> validate -> provision -> deploy -> troubleshoot -> observe -> remediate -> self-heal -> persist -> rollback -> restore -> prove -> destroy**.
